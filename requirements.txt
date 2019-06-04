@@ -1,0 +1,3 @@
+requests
+flake8 # library to check code with python linters
+isort  # library to fix imports ordering
