@@ -1,11 +1,5 @@
-import requests
-
-
-
 import json
-
-import os
-
+import requests
 
 ENVS = {
     'qa': 'backend-qa.usummitapp.com',
@@ -15,7 +9,7 @@ ENVS = {
 CHECKS = ['Cache', 'Database', 'Email']
 
 
-def main(env):
+def main(env: object) -> object:
     """Run development sites health-checks
 
     This function goes to a corresponding env site, gets current health checks
@@ -23,32 +17,33 @@ def main(env):
 
     """
     print(
-    f"Env: {env}")
+        f"Env: {env}")
 
-    if env not in ENVS:
-        raise Exception(f'{env} environment is not available')
+    if env in ENVS:
+        checks_params = '&' \
+            .join([f'checks=i' for i in CHECKS])
+        domain = ENVS[env]
+        health_check_url = f'https://{domain}/api/v1/utils/health-check/' \
+                           f'?{checks_params}'
+        http_response = requests.get(health_check_url, timeout=20)
+        status_code = http_response.status_code
+        data = json.loads(http_response)
+        print(f'Health check: status {status_code}, content: '
+              f'{json.dumps(data)}')
 
-    checks_params = '&'\
-                .join([f'checks=i' for i in CHECKS])
-    domain = ENVS[env]
-    health_check_url=f'https://{domain}/api/v1/utils/health-check/' \
-        f'?{checks_params}'
-    http_response = requests.get(health_check_url, timeout=20)
-    status_code = http_response.status_code
-    data = json.loads(http_response)
-    print(f'Health check: status {status_code}, content: {json.dumps(data)}')
+        if status_code != 200:
+            print(f'Env: {env} error (unknown) [{status_code}] status')
+            raise Exception('HealthCheck: unknown error')
 
-    if status_code != 200:
-        print(f'Env: {env} error (unknown) [{status_code}] status')
-        raise Exception('HealthCheck: unknown error')
+        errors = [k for k, v in data if v != 'OK']
+        if errors:
+            print(f'Env: {env} error - {", ".join(errors)}')
+            raise Exception(f'HealthCheck: {", ".join(errors)} errors')
 
-    errors =[k for k, v in data if v != 'OK']
-    if errors:
-        print(f'Env: {env} error - {", ".join(errors)}')
-        raise Exception(f'HealthCheck: {", ".join(errors)} errors')
+        print(f"Env: {env} success - {json.dumps(data)}")
+        return 'HealthCheck: ok'
 
-    print(f"Env: {env} success - {json.dumps(data)}")
-    return 'HealthCheck: ok'
+    raise Exception(f'{env} environment is not available')
 
 
 if __name__ == '__main__':
